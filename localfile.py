@@ -1,21 +1,28 @@
 import snapext
 import os
 user = os.path.expanduser('~')
+from hashlib import md5
+import time
+streams = {}
 @snapext.SnapHandler.route('/file/get')
 def fileget(path):
     if os.path.isfile("%s/%s" % (user, path)):
         return open('%s/%s' % (user, path), 'r+').read()
     else:
         return False
+@snapext.SnapHandler.route('/file/token')
+def token(path):
+    filetoken = md5(path + repr(round(time.time() * 1000))[-7:-2]).hexdigest()
+    streams[filetoken] = open("%s/%s" % (user, path), 'r+')
+    return filetoken
 @snapext.SnapHandler.route('/file/stream')
-def streamline(path, line): #haha
-    if os.path.isfile("%s/%s" % (user, path)):
-        f = open('%s/%s' % (user, path), 'r+')
-        r = f.readlines()[line-1].strip('\n')
-        f.close()
-        return r
+def streamline(token): #haha
+    line = streams[token].readline().strip('\n')
+    if line == '':
+        streams[token].close()
+        return '***EOF***'
     else:
-        return False
+        return line
 @snapext.SnapHandler.route('/file/write')
 def filewrite(path, content):
     f = open("%s/%s" % (user, path), 'a')
